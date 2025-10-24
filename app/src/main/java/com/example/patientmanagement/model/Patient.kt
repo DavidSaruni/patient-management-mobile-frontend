@@ -11,5 +11,6 @@ data class Patient(
     val lastName: String,
     val registrationDate: Date,
     val dateOfBirth: Date,
-    val gender: String
+    val gender: String,
+    val synced: Boolean = false
 )

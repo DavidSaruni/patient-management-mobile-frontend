@@ -3,11 +3,13 @@ package com.example.patientmanagement
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.patientmanagement.data.AppDatabase
 import com.example.patientmanagement.model.Patient
+import com.example.patientmanagement.network.ApiClient
+import com.example.patientmanagement.network.ApiService
+import com.example.patientmanagement.network.Patient as NetworkPatient
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointBackward
@@ -15,10 +17,11 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -32,6 +35,9 @@ class RegisterPatient : AppCompatActivity() {
     private lateinit var etGender: MaterialAutoCompleteTextView
     private lateinit var btnSave: MaterialButton
     private lateinit var btnClose: MaterialButton
+
+    private val apiService by lazy { ApiClient.retrofit.create(ApiService::class.java) }
+    private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,125 +53,128 @@ class RegisterPatient : AppCompatActivity() {
         btnSave = findViewById(R.id.btnSave)
         btnClose = findViewById(R.id.btnClose)
 
-        // Gender Dropdown
+        // Gender dropdown
         val genderOptions = listOf("Male", "Female", "Other")
-        val genderAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, genderOptions)
-        etGender.setAdapter(genderAdapter)
-        etGender.setOnClickListener { etGender.showDropDown() }
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, genderOptions)
+        etGender.setAdapter(adapter)
 
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        // Prefill registration date
+        etRegistrationDate.setText(dateFormat.format(Date()))
 
-        // Prefill Registration Date with today's date
-        val today = Date()
-        etRegistrationDate.setText(dateFormat.format(today))
-
-        // Restrict date selection to past or current dates only
         val dateConstraints = CalendarConstraints.Builder()
             .setValidator(DateValidatorPointBackward.now())
             .build()
 
-        // Registration Date Picker
-        etRegistrationDate.setOnClickListener {
-            val datePicker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("Select Registration Date")
-                .setCalendarConstraints(dateConstraints)
-                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
-                .build()
+        // Date pickers
+        etRegistrationDate.setOnClickListener { showDatePicker(it as TextInputEditText, "Select Registration Date", dateConstraints) }
+        etDob.setOnClickListener { showDatePicker(it as TextInputEditText, "Select Date of Birth", dateConstraints) }
 
-            datePicker.addOnPositiveButtonClickListener { selection ->
-                val date = Date(selection)
-                etRegistrationDate.setText(dateFormat.format(date))
-            }
-
-            datePicker.show(supportFragmentManager, "registration_date_picker")
-        }
-
-        // Date of Birth Picker
-        etDob.setOnClickListener {
-            val datePicker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("Select Date of Birth")
-                .setCalendarConstraints(dateConstraints)
-                .build()
-
-            datePicker.addOnPositiveButtonClickListener { selection ->
-                val date = Date(selection)
-                etDob.setText(dateFormat.format(date))
-            }
-
-            datePicker.show(supportFragmentManager, "dob_date_picker")
-        }
-
-        // Save Button Logic
         btnSave.setOnClickListener {
-            if (validateForm()) {
-                val patient = Patient(
-                    patientId = etPatientId.text.toString(),
-                    firstName = etFirstName.text.toString(),
-                    lastName = etLastName.text.toString(),
-                    registrationDate = dateFormat.parse(etRegistrationDate.text.toString())!!,
-                    dateOfBirth = dateFormat.parse(etDob.text.toString())!!,
-                    gender = etGender.text.toString()
+            if (validateForm()) savePatient()
+        }
+
+        btnClose.setOnClickListener { finish() }
+    }
+
+    private fun showDatePicker(target: TextInputEditText, title: String, constraints: CalendarConstraints) {
+        val datePicker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText(title)
+            .setCalendarConstraints(constraints)
+            .build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val date = Date(selection)
+            target.setText(dateFormat.format(date))
+        }
+
+        datePicker.show(supportFragmentManager, title)
+    }
+
+    private fun savePatient() {
+        val patient = Patient(
+            patientId = etPatientId.text.toString(),
+            firstName = etFirstName.text.toString(),
+            lastName = etLastName.text.toString(),
+            registrationDate = dateFormat.parse(etRegistrationDate.text.toString())!!,
+            dateOfBirth = dateFormat.parse(etDob.text.toString())!!,
+            gender = etGender.text.toString(),
+            synced = false
+        )
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(applicationContext)
+                db.patientDao().insertPatient(patient)
+
+                // ✅ Log when saving locally
+                Log.d("SYNC", "Patient saved locally: ${patient.firstName}")
+
+                // Prepare network object
+                val networkDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val networkPatient = NetworkPatient(
+                    patient_id = patient.patientId,
+                    registration_date = networkDateFormat.format(patient.registrationDate),
+                    first_name = patient.firstName,
+                    last_name = patient.lastName,
+                    date_of_birth = networkDateFormat.format(patient.dateOfBirth),
+                    gender = patient.gender
                 )
 
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = AppDatabase.getDatabase(applicationContext)
-                    db.patientDao().insertPatient(patient)
+                Log.d("SYNC", "Attempting to sync to server...")
 
-                    withContext(Dispatchers.Main) {
-                        Snackbar.make(btnSave, "Patient saved successfully!", Snackbar.LENGTH_LONG).show()
-                        Log.d("RegisterPatient", "Saved: ${patient.firstName} ${patient.lastName}")
-                        // ✅ Redirect to VitalsActivity after successful save
-                        val intent = Intent(this@RegisterPatient, VitalsActivity::class.java).apply {
-                            putExtra("patientId", patient.patientId)
-                            putExtra("patientName", "${patient.firstName} ${patient.lastName}")
-                        }
-                        startActivity(intent)
-                        finish()
+                try {
+                    val response = apiService.registerPatient(networkPatient)
+                    if (response.isSuccessful) {
+                        db.patientDao().insertPatient(patient.copy(synced = true))
+                        Log.d("SYNC", "Patient synced successfully with server.")
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e("SYNC", "Server error: ${response.code()} - ${response.message()} - $errorBody")
                     }
+                } catch (e: IOException) {
+                    Log.e("SYNC", "Network error: ${e.message}")
+                } catch (e: HttpException) {
+                    Log.e("SYNC", "HTTP error: ${e.message}")
+                }
+
+                withContext(Dispatchers.Main) {
+                    Log.d("SYNC", "Showing snackbar and navigating to vitals")
+                    Snackbar.make(btnSave, "Patient saved successfully!", Snackbar.LENGTH_LONG).show()
+                    navigateToVitals(patient)
+                }
+            } catch (e: Exception) {
+                Log.e("SYNC", "Unexpected crash: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Snackbar.make(btnSave, "An error occurred: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
             }
         }
 
+    }
 
-        // Close Button Logic
-        btnClose.setOnClickListener {
-            finish()
+    private fun navigateToVitals(patient: Patient) {
+        val intent = Intent(this, VitalsActivity::class.java).apply {
+            putExtra("patientId", patient.patientId)
+            putExtra("patientName", "${patient.firstName} ${patient.lastName}")
         }
+        startActivity(intent)
+        finish()
     }
 
     private fun validateForm(): Boolean {
-        val fields = listOf(
-            etPatientId,
-            etFirstName,
-            etLastName,
-            etRegistrationDate,
-            etDob,
-        )
-
-        for (field in fields) {
-            if (field.text.isNullOrBlank()) {
-                field.error = "Required"
+        val fields = listOf(etPatientId, etFirstName, etLastName, etRegistrationDate, etDob)
+        for (f in fields) {
+            if (f.text.isNullOrBlank()) {
+                f.error = "Required"
                 return false
             }
         }
 
         if (etGender.text.isNullOrBlank()) {
-            etGender.error = "Select Gender"
+            etGender.error = "Select gender"
             return false
         }
 
         return true
-    }
-
-    private fun clearFields() {
-        etPatientId.text?.clear()
-        etFirstName.text?.clear()
-        etLastName.text?.clear()
-        etDob.text?.clear()
-        etGender.text?.clear()
-
-        val today = Date()
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-        etRegistrationDate.setText(dateFormat.format(today))
     }
 }

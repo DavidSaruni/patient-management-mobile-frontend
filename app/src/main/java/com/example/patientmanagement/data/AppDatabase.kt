@@ -11,7 +11,7 @@ import com.example.patientmanagement.model.VisitA
 import com.example.patientmanagement.model.VisitB
 import com.example.patientmanagement.utils.Converters
 
-@Database(entities = [Patient::class, Vitals::class, VisitA::class, VisitB::class], version = 4, exportSchema = false)
+@Database(entities = [Patient::class, Vitals::class, VisitA::class, VisitB::class], version = 5, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 

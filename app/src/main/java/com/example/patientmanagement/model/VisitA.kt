@@ -11,5 +11,6 @@ data class VisitA(
     val visitDate: Date,
     val generalHealth: String,
     val onDiet: String,
-    val comments: String
+    val comments: String,
+    val synced: Boolean = false
 )

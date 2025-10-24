@@ -11,5 +11,6 @@ data class Vitals(
     val visitDate: Date,
     val heightCm: Double,
     val weightKg: Double,
-    val bmi: Double
+    val bmi: Double,
+    val synced: Boolean = false
 )
