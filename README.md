@@ -105,7 +105,8 @@ Ensure your backend is reachable over the same network.
 The main dashboard showing all registered patients with their latest BMI status. Tap any patient to view detailed information.
 
 ## Patient Details Screen
-![Patient Details](https://github.com/user-attachments/assets/patient-details-screen)
+(![WhatsApp Image 2025-10-27 at 5 59 26 PM](https://github.com/user-attachments/assets/db5eabc3-c29d-4a28-b20c-e2fb41062416)
+)
 
 **Key Features:**
 - **Patient Information Card**: Shows name, age, gender, and registration date
@@ -150,15 +151,6 @@ Dashboard showing patients with color-coded BMI status indicators.
 ![Filter by Date](https://github.com/user-attachments/assets/79282928-2449-44e9-a21b-b69529a67217)
 
 Filter patients by visit date to view specific day's appointments.
-
-## Visit Form A
-![WhatsApp Image 2025-10-25 at 1 06 52 AM](https://github.com/user-attachments/assets/d005f690-ec51-4d2d-962f-86912f277f0b)
-
-## Patient Vitals - BMI >==25
-![WhatsApp Image 2025-10-25 at 1 09 17 AM](https://github.com/user-attachments/assets/d08d52ee-798f-46ed-bdbd-8d9807ada4e2)
-
-## Visit Form B
-![WhatsApp Image 2025-10-25 at 1 09 17 AM (1)](https://github.com/user-attachments/assets/4e1b1ed4-f0d2-40a5-93c9-da14f48b7fea)
 
 ### Offline-First Architecture
 - **Local data storage**: All data stored locally using Room database
