@@ -21,4 +21,8 @@ interface VisitBDao {
 
     @Query("UPDATE visit_b SET synced = 1 WHERE id = :id")
     suspend fun updateSyncStatus(id: Int)
+
+    // Get visits by patient ID (for PatientDetailsActivity)
+    @Query("SELECT * FROM visit_b WHERE patientId = :patientId ORDER BY visitDate DESC")
+    suspend fun getVisitsByPatientId(patientId: String): List<VisitB>
 }

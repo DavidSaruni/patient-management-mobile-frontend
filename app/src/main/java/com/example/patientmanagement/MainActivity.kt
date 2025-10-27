@@ -11,6 +11,7 @@ import com.example.patientmanagement.adapter.PatientAdapter
 import com.example.patientmanagement.adapter.PatientWithVitals
 import com.example.patientmanagement.data.AppDatabase
 import com.example.patientmanagement.workers.SyncManager
+import com.example.patientmanagement.utils.SampleDataGenerator
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.textfield.TextInputEditText
@@ -70,6 +71,9 @@ class MainActivity : AppCompatActivity() {
 
         // 🕒 Schedule background sync when main screen loads
         SyncManager.schedulePeriodicSync(applicationContext)
+        
+        // Generate sample data if needed
+        SampleDataGenerator.generateSampleData(applicationContext)
     }
 
     override fun onResume() {

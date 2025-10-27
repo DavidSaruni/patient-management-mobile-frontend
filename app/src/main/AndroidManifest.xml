@@ -33,6 +33,9 @@
             android:name=".Dashboard"
             android:exported="false" />
         <activity
+            android:name=".PatientDetailsActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

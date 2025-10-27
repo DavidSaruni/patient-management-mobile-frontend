@@ -18,4 +18,8 @@ interface PatientDao {
 
     @Query("SELECT * FROM patients WHERE synced = 0")
     fun getUnsyncedPatients(): List<Patient>
+
+    // Get patient by ID (for PatientDetailsActivity)
+    @Query("SELECT * FROM patients WHERE patientId = :patientId")
+    suspend fun getPatientById(patientId: String): Patient?
 }

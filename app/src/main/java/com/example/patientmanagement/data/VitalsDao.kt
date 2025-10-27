@@ -39,4 +39,8 @@ interface VitalsDao {
     // 🔹 Mark vitals as synced
     @Query("UPDATE vitals SET synced = 1 WHERE id = :id")
     suspend fun updateSyncStatus(id: Int)
+
+    // Get vitals by patient ID (for PatientDetailsActivity)
+    @Query("SELECT * FROM vitals WHERE patientId = :patientId ORDER BY visitDate DESC")
+    suspend fun getVitalsByPatientId(patientId: String): List<Vitals>
 }

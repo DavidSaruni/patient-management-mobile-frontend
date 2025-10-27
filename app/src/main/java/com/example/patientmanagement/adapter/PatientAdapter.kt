@@ -1,5 +1,7 @@
 package com.example.patientmanagement.adapter
 
+import android.content.Intent
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +9,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.patientmanagement.R
+import com.example.patientmanagement.PatientDetailsActivity
 import com.example.patientmanagement.model.Patient
 import java.util.*
 
@@ -52,6 +55,14 @@ class PatientAdapter : RecyclerView.Adapter<PatientAdapter.PatientViewHolder>() 
         holder.tvBmiStatus.setTextColor(
             ContextCompat.getColor(holder.itemView.context, colorRes)
         )
+
+        // Set click listener for the entire item
+        holder.itemView.setOnClickListener {
+            Log.d("PatientAdapter", "Patient clicked: ${patient.patientId}")
+            val intent = Intent(holder.itemView.context, PatientDetailsActivity::class.java)
+            intent.putExtra("patientId", patient.patientId)
+            holder.itemView.context.startActivity(intent)
+        }
     }
 
     override fun getItemCount(): Int = patientsWithVitals.size
