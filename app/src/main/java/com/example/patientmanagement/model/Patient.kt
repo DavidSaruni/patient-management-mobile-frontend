@@ -6,7 +6,7 @@ import java.util.*
 
 @Entity(tableName = "patients")
 data class Patient(
-    @PrimaryKey val patientId: String, // Unique field
+    @PrimaryKey val patientId: String,
     val firstName: String,
     val lastName: String,
     val registrationDate: Date,

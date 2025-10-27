@@ -6,6 +6,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.patientmanagement.data.AppDatabase
 import com.example.patientmanagement.model.Patient
 import com.example.patientmanagement.model.VisitA
+import com.example.patientmanagement.workers.SyncManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointBackward
@@ -112,6 +113,10 @@ class VisitPageAActivity : AppCompatActivity() {
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     db.visitADao().insertVisitA(visitA)
+
+                    // Trigger one-time sync via SyncManager
+                    SyncManager.triggerImmediateSync(applicationContext)
+
                     withContext(Dispatchers.Main) {
                         Snackbar.make(btnSave, "Visit Form A saved successfully!", Snackbar.LENGTH_LONG).show()
                         finish() // ✅ return to patient listing

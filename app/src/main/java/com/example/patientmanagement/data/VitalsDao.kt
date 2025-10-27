@@ -25,11 +25,18 @@ interface VitalsDao {
     """)
     suspend fun getLastVitalsByPatientId(patientId: String): Vitals?
 
+    // Get all vitals for a given date
     @Query("""
         SELECT * FROM vitals 
         WHERE date(visitDate / 1000, 'unixepoch') = date(:selectedDate / 1000, 'unixepoch')
     """)
-
     suspend fun getVitalsByDate(selectedDate: Long): List<Vitals>
 
+    // 🔹 Get unsynced vitals for background sync
+    @Query("SELECT * FROM vitals WHERE synced = 0")
+    suspend fun getUnsyncedVitals(): List<Vitals>
+
+    // 🔹 Mark vitals as synced
+    @Query("UPDATE vitals SET synced = 1 WHERE id = :id")
+    suspend fun updateSyncStatus(id: Int)
 }

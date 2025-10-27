@@ -3,7 +3,6 @@ package com.example.patientmanagement
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -11,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.patientmanagement.adapter.PatientAdapter
 import com.example.patientmanagement.adapter.PatientWithVitals
 import com.example.patientmanagement.data.AppDatabase
+import com.example.patientmanagement.workers.SyncManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.textfield.TextInputEditText
@@ -67,11 +67,17 @@ class MainActivity : AppCompatActivity() {
             etFilterDate.setText("")
             observePatients()
         }
+
+        // 🕒 Schedule background sync when main screen loads
+        SyncManager.schedulePeriodicSync(applicationContext)
     }
 
     override fun onResume() {
         super.onResume()
         if (selectedDate == null) observePatients()
+
+        // 🔄 Trigger a quick sync to ensure latest data
+        SyncManager.triggerImmediateSync(applicationContext)
     }
 
     // Load all patients with their latest vitals
@@ -88,7 +94,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
-                    Log.d("MainActivity", "Loaded ${patientWithVitalsList.size} patients")
+                    Log.d("MainActivity", "📋 Loaded ${patientWithVitalsList.size} patients")
                     patientAdapter.submitList(patientWithVitalsList)
                 }
             }
@@ -115,6 +121,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
+                    Log.d("MainActivity", "🔍 Filtered patients by date: ${filteredPatients.size}")
                     patientAdapter.submitList(patientWithVitalsList)
                 }
             }
@@ -123,11 +130,10 @@ class MainActivity : AppCompatActivity() {
 
     // Use MaterialDatePicker for a modern look
     private fun showMaterialDatePicker() {
-        val datePicker =
-            MaterialDatePicker.Builder.datePicker()
-                .setTitleText("Select Visit Date")
-                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
-                .build()
+        val datePicker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("Select Visit Date")
+            .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+            .build()
 
         datePicker.show(supportFragmentManager, "DATE_PICKER")
 

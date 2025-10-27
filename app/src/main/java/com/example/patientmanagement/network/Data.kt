@@ -21,7 +21,7 @@ data class VisitA(
     val patient: String,
     val visit_date: String,
     val general_health: String,
-    val on_diet: Boolean,
+    val on_diet: String,
     val comments: String
 )
 
@@ -29,6 +29,6 @@ data class VisitB(
     val patient: String,
     val visit_date: String,
     val general_health: String,
-    val using_drugs: Boolean,
+    val using_drugs: String,
     val comments: String
 )

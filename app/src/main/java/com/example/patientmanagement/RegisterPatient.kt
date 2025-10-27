@@ -7,9 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.patientmanagement.data.AppDatabase
 import com.example.patientmanagement.model.Patient
-import com.example.patientmanagement.network.ApiClient
-import com.example.patientmanagement.network.ApiService
-import com.example.patientmanagement.network.Patient as NetworkPatient
+import com.example.patientmanagement.workers.SyncManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointBackward
@@ -20,8 +18,6 @@ import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.HttpException
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,14 +32,13 @@ class RegisterPatient : AppCompatActivity() {
     private lateinit var btnSave: MaterialButton
     private lateinit var btnClose: MaterialButton
 
-    private val apiService by lazy { ApiClient.retrofit.create(ApiService::class.java) }
     private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register_patient)
 
-        // Initialize fields
+        // Initialize UI
         etPatientId = findViewById(R.id.etPatientId)
         etFirstName = findViewById(R.id.etFirstName)
         etLastName = findViewById(R.id.etLastName)
@@ -69,11 +64,15 @@ class RegisterPatient : AppCompatActivity() {
         etRegistrationDate.setOnClickListener { showDatePicker(it as TextInputEditText, "Select Registration Date", dateConstraints) }
         etDob.setOnClickListener { showDatePicker(it as TextInputEditText, "Select Date of Birth", dateConstraints) }
 
+        // Button listeners
         btnSave.setOnClickListener {
             if (validateForm()) savePatient()
         }
 
         btnClose.setOnClickListener { finish() }
+
+        // 🔁 Schedule periodic sync when app opens
+        SyncManager.schedulePeriodicSync(applicationContext)
     }
 
     private fun showDatePicker(target: TextInputEditText, title: String, constraints: CalendarConstraints) {
@@ -105,51 +104,22 @@ class RegisterPatient : AppCompatActivity() {
             try {
                 val db = AppDatabase.getDatabase(applicationContext)
                 db.patientDao().insertPatient(patient)
+                Log.d("RegisterPatient", "💾 Patient saved locally: ${patient.firstName}")
 
-                // ✅ Log when saving locally
-                Log.d("SYNC", "Patient saved locally: ${patient.firstName}")
-
-                // Prepare network object
-                val networkDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val networkPatient = NetworkPatient(
-                    patient_id = patient.patientId,
-                    registration_date = networkDateFormat.format(patient.registrationDate),
-                    first_name = patient.firstName,
-                    last_name = patient.lastName,
-                    date_of_birth = networkDateFormat.format(patient.dateOfBirth),
-                    gender = patient.gender
-                )
-
-                Log.d("SYNC", "Attempting to sync to server...")
-
-                try {
-                    val response = apiService.registerPatient(networkPatient)
-                    if (response.isSuccessful) {
-                        db.patientDao().insertPatient(patient.copy(synced = true))
-                        Log.d("SYNC", "Patient synced successfully with server.")
-                    } else {
-                        val errorBody = response.errorBody()?.string()
-                        Log.e("SYNC", "Server error: ${response.code()} - ${response.message()} - $errorBody")
-                    }
-                } catch (e: IOException) {
-                    Log.e("SYNC", "Network error: ${e.message}")
-                } catch (e: HttpException) {
-                    Log.e("SYNC", "HTTP error: ${e.message}")
-                }
+                // Trigger one-time sync via SyncManager
+                SyncManager.triggerImmediateSync(applicationContext)
 
                 withContext(Dispatchers.Main) {
-                    Log.d("SYNC", "Showing snackbar and navigating to vitals")
-                    Snackbar.make(btnSave, "Patient saved successfully!", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(btnSave, "Patient saved locally! Sync queued.", Snackbar.LENGTH_LONG).show()
                     navigateToVitals(patient)
                 }
             } catch (e: Exception) {
-                Log.e("SYNC", "Unexpected crash: ${e.message}", e)
+                Log.e("RegisterPatient", "❌ Error saving patient: ${e.message}", e)
                 withContext(Dispatchers.Main) {
-                    Snackbar.make(btnSave, "An error occurred: ${e.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(btnSave, "Error saving patient: ${e.message}", Snackbar.LENGTH_LONG).show()
                 }
             }
         }
-
     }
 
     private fun navigateToVitals(patient: Patient) {

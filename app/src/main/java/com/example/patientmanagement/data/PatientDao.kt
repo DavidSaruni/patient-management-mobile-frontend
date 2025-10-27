@@ -15,4 +15,7 @@ interface PatientDao {
 
     @Query("SELECT * FROM patients ORDER BY registrationDate DESC")
     fun getAllPatients(): Flow<List<Patient>>
+
+    @Query("SELECT * FROM patients WHERE synced = 0")
+    fun getUnsyncedPatients(): List<Patient>
 }

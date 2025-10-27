@@ -14,4 +14,10 @@ interface VisitADao {
 
     @Query("SELECT * FROM visit_a WHERE patientId = :patientId ORDER BY visitDate DESC")
     fun getVisitsByPatient(patientId: String): Flow<List<VisitA>>
+
+    @Query("SELECT * FROM visit_a WHERE synced = 0")
+    suspend fun getUnsyncedVisitsA(): List<VisitA>
+
+    @Query("UPDATE visit_a SET synced = 1 WHERE id = :id")
+    suspend fun updateSyncStatus(id: Int)
 }
