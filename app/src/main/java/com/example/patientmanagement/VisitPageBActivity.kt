@@ -52,14 +52,37 @@ class VisitPageBActivity : AppCompatActivity() {
 
         val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-        // 🔹 Load patient list
-        lifecycleScope.launch(Dispatchers.IO) {
-            db.patientDao().getAllPatients().collectLatest { patients ->
-                withContext(Dispatchers.Main) { setupPatientDropdown(patients) }
+        // Load patients into dropdown
+        // Check if a patientId was passed from a previous activity
+        val patientIdFromIntent = intent.getStringExtra("patientId")
+        selectedPatientId = patientIdFromIntent
+
+        if (patientIdFromIntent != null) {
+            // A specific patient was passed, so load their details and disable the dropdown.
+            etPatientName.isEnabled = false // Disable the TextInputLayout to prevent changes
+            lifecycleScope.launch(Dispatchers.IO) {
+                val patient = db.patientDao().getPatientById(patientIdFromIntent)
+                withContext(Dispatchers.Main) {
+                    patient?.let {
+                        etPatientName.setText("${it.firstName} ${it.lastName}", false) // Set text without filtering
+                    }
+                }
+            }
+        } else {
+            // No specific patient was passed, so enable the dropdown and load all patients.
+            etPatientName.isEnabled = true
+            lifecycleScope.launch(Dispatchers.IO) {
+                db.patientDao().getAllPatients().collectLatest { patients ->
+                    withContext(Dispatchers.Main) {
+                        setupPatientDropdown(patients)
+                    }
+                }
             }
         }
 
-        // 🔹 Visit Date Picker
+        etVisitDate.setText(dateFormat.format(Date()))
+
+        // Visit Date Picker
         val dateConstraints = CalendarConstraints.Builder()
             .setValidator(DateValidatorPointBackward.now())
             .build()
@@ -79,7 +102,7 @@ class VisitPageBActivity : AppCompatActivity() {
             picker.show(supportFragmentManager, "visit_date_picker")
         }
 
-        // 🔹 Radio selections
+        // Radio selections
         rgGeneralHealth.setOnCheckedChangeListener { _, checkedId ->
             selectedHealth = when (checkedId) {
                 R.id.rbHealthGood -> "Good"
@@ -96,7 +119,7 @@ class VisitPageBActivity : AppCompatActivity() {
             }
         }
 
-        // 🔹 Save Button
+        // Save Button
         btnSave.setOnClickListener {
             if (validateForm()) {
                 val visitDate = dateFormat.parse(etVisitDate.text.toString())!!

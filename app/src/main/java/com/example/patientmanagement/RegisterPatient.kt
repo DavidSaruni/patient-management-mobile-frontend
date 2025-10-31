@@ -71,7 +71,7 @@ class RegisterPatient : AppCompatActivity() {
 
         btnClose.setOnClickListener { finish() }
 
-        // 🔁 Schedule periodic sync when app opens
+        // Schedule periodic sync when app opens
         SyncManager.schedulePeriodicSync(applicationContext)
     }
 

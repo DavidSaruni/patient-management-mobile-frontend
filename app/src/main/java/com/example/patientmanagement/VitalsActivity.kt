@@ -55,16 +55,37 @@ class VitalsActivity : AppCompatActivity() {
             .setValidator(DateValidatorPointBackward.now())
             .build()
 
-        // 🔹 Step 1: Load patients into dropdown
-        lifecycleScope.launch(Dispatchers.IO) {
-            db.patientDao().getAllPatients().collectLatest { patients ->
+        // Step 1: Load patients into dropdown
+        // Check if a patientId was passed from a previous activity
+        val patientIdFromIntent = intent.getStringExtra("patientId")
+        selectedPatientId = patientIdFromIntent
+
+        if (patientIdFromIntent != null) {
+            // A specific patient was passed, so load their details and disable the dropdown.
+            etPatientName.isEnabled = false // Disable the TextInputLayout to prevent changes
+            lifecycleScope.launch(Dispatchers.IO) {
+                val patient = db.patientDao().getPatientById(patientIdFromIntent)
                 withContext(Dispatchers.Main) {
-                    setupPatientDropdown(patients)
+                    patient?.let {
+                        etPatientName.setText("${it.firstName} ${it.lastName}", false) // Set text without filtering
+                    }
+                }
+            }
+        } else {
+            // No specific patient was passed, so enable the dropdown and load all patients.
+            etPatientName.isEnabled = true
+            lifecycleScope.launch(Dispatchers.IO) {
+                db.patientDao().getAllPatients().collectLatest { patients ->
+                    withContext(Dispatchers.Main) {
+                        setupPatientDropdown(patients)
+                    }
                 }
             }
         }
 
-        // 🔹 Step 2: Visit Date Picker
+        etVisitDate.setText(dateFormat.format(Date()))
+
+        // Step 2: Visit Date Picker
         etVisitDate.setOnClickListener {
             val datePicker = MaterialDatePicker.Builder.datePicker()
                 .setTitleText("Select Visit Date")
@@ -80,11 +101,11 @@ class VitalsActivity : AppCompatActivity() {
             datePicker.show(supportFragmentManager, "visit_date_picker")
         }
 
-        // 🔹 Step 3: Auto-calculate BMI
+        // Step 3: Auto-calculate BMI
         etHeight.addTextChangedListener { calculateBmi() }
         etWeight.addTextChangedListener { calculateBmi() }
 
-        // 🔹 Step 4: Save Vitals
+        // Step 4: Save Vitals
         btnSave.setOnClickListener {
             if (validateForm()) {
                 val heightCm = etHeight.text.toString().toDouble()
